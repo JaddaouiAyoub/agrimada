@@ -126,6 +126,8 @@ Puis ouvrir http://localhost:3000 et se connecter avec le compte administrateur.
 | `npm run db:studio` | Prisma Studio |
 | `npm run admin:create` | Premier administrateur (refuse s'il en existe déjà un actif) |
 
+`admin:create` est une commande interactive à exécuter une seule fois dans un terminal après le déploiement, et non dans la commande de démarrage ou de pré-déploiement Railway. Lancez-la depuis un terminal connecté à la base Railway. Elle utilise les variables d'environnement disponibles et charge `.env` en local s'il existe.
+
 ## Procédure de migration
 
 1. Modifier `prisma/schema.prisma`.

@@ -5,6 +5,7 @@
 //  - Refuse toute adresse déjà existante (aucune modification de compte existant).
 // Lancement : npm run users:invite -- chemin/vers/comptes.json
 // Format : [{ "name": "Prénom Nom", "email": "x@exemple.ma", "role": "ADMIN" | "MEMBER" }]
+import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { PrismaClient } from "@prisma/client";
 import { activationUrl, createRawToken, hashToken } from "../src/lib/auth/tokens";

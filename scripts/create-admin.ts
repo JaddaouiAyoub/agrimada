@@ -2,6 +2,7 @@
 //  - Refuse de s'exécuter si un administrateur actif existe déjà.
 //  - Le mot de passe est saisi de façon masquée ; il n'est jamais affiché, journalisé ni écrit sur disque.
 // Lancement : npm run admin:create
+import "dotenv/config";
 import { stdin, stdout } from "node:process";
 import { createInterface } from "node:readline/promises";
 import { PrismaClient } from "@prisma/client";
@@ -53,6 +54,10 @@ function askHidden(question: string): Promise<string> {
 }
 
 async function main() {
+  if (!stdin.isTTY || !stdout.isTTY) {
+    throw new Error("Terminal interactif requis. Exécutez cette commande une seule fois après le déploiement, depuis un terminal connecté à la base Railway.");
+  }
+
   const activeAdmins = await prisma.user.count({ where: { role: "ADMIN", status: "ACTIVE" } });
   if (activeAdmins > 0) {
     console.error("Un administrateur actif existe déjà. Les autres comptes se créent depuis l'application (page Membres).");

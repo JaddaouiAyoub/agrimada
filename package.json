@@ -19,8 +19,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "admin:create": "tsx --env-file=.env scripts/create-admin.ts",
-    "users:invite": "tsx --env-file=.env scripts/invite-users.ts"
+    "admin:create": "tsx scripts/create-admin.ts",
+    "users:invite": "tsx scripts/invite-users.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.0",
