@@ -122,7 +122,7 @@ Puis ouvrir http://localhost:3000 et se connecter avec le compte administrateur.
 | `npm run db:migrate` | `prisma migrate dev` (crée / applique les migrations en dev) |
 | `npm run db:migrate:create` | Crée une migration sans l'appliquer (pour relecture) |
 | `npm run db:deploy` | `prisma migrate deploy` (production) |
-| `npm run db:seed` | Paramètres + catégories par défaut, uniquement si absents |
+| `npm run db:seed` | Paramètres + catégories par défaut, uniquement si absents (utilise les variables d'environnement Railway ou `.env` en local) |
 | `npm run db:studio` | Prisma Studio |
 | `npm run admin:create` | Premier administrateur (refuse s'il en existe déjà un actif) |
 
