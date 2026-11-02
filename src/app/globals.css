@@ -1,0 +1,100 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* FarmShare — vert foncé, vert sauge, blanc cassé, gris neutres. */
+:root {
+  --radius: 0.625rem;
+
+  --background: #f7f6f1;
+  --foreground: #1c2620;
+  --card: #ffffff;
+  --card-foreground: #1c2620;
+  --popover: #ffffff;
+  --popover-foreground: #1c2620;
+
+  --primary: #24533d;
+  --primary-foreground: #f7f6f1;
+  --secondary: #e8eee6;
+  --secondary-foreground: #24533d;
+  --muted: #f0efe9;
+  --muted-foreground: #626b64;
+  --accent: #e3ebe2;
+  --accent-foreground: #1c3a2c;
+  --destructive: #c23b32;
+  --destructive-foreground: #ffffff;
+
+  --border: #e2e1d9;
+  --input: #d9d8cf;
+  --ring: #6b8f71;
+
+  --sidebar: #1d3a2d;
+  --sidebar-foreground: #dfe8de;
+  --sidebar-muted: #9db3a2;
+  --sidebar-accent: #2a4d3c;
+  --sidebar-border: #2c4a3b;
+
+  /* Couleurs de séries (palette catégorielle validée, paire adjacente orange/aqua). */
+  --revenue: #1a8f63;
+  --revenue-soft: #e3f3ec;
+  --expense: #d4582a;
+  --expense-soft: #fbebe3;
+  --result: #2a78d6;
+  --chart-grid: #e1e0d9;
+  --chart-axis: #898781;
+
+  --success: #006300;
+  --warning: #9a6700;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-revenue: var(--revenue);
+  --color-revenue-soft: var(--revenue-soft);
+  --color-expense: var(--expense);
+  --color-expense-soft: var(--expense-soft);
+  --color-result: var(--result);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}

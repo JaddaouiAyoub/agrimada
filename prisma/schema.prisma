@@ -1,0 +1,182 @@
+// FarmShare — schéma de données (une seule ferme).
+// Contraintes SQL complémentaires (CHECK) : voir prisma/sql/constraints.sql.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum UserStatus {
+  PENDING // invité, mot de passe pas encore défini
+  ACTIVE
+  DISABLED
+}
+
+enum OperationType {
+  EXPENSE
+  REVENUE
+}
+
+// Dépense : FARM = payée avec l'argent de la ferme, MEMBER = avancée par le membre.
+// Revenu  : FARM = versé à la ferme,               MEMBER = conservé par le membre.
+enum FundsSource {
+  FARM
+  MEMBER
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CHEQUE
+  CARD
+  MOBILE_PAYMENT
+  OTHER
+}
+
+enum AuthTokenType {
+  INVITATION
+  PASSWORD_RESET
+}
+
+model User {
+  id             String     @id @default(cuid())
+  name           String     @db.VarChar(120)
+  email          String     @unique @db.VarChar(254) // toujours en minuscules (CHECK SQL)
+  passwordHash   String?
+  role           Role       @default(MEMBER)
+  status         UserStatus @default(PENDING)
+  sessionVersion Int        @default(0) // incrémenté pour révoquer toutes les sessions
+  lastLoginAt    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  operations        Operation[] @relation("OperationMember")
+  createdOperations Operation[] @relation("OperationCreator")
+  updatedOperations Operation[] @relation("OperationUpdater")
+  deletedOperations Operation[] @relation("OperationDeleter")
+  authTokens        AuthToken[]
+  auditLogs         AuditLog[]
+
+  @@index([status, role])
+}
+
+model Category {
+  id             String        @id @default(cuid())
+  type           OperationType
+  name           String        @db.VarChar(80)
+  normalizedName String        @db.VarChar(80) // nom en minuscules, espaces normalisés
+  description    String?       @db.VarChar(500)
+  color          String?       @db.VarChar(7)
+  icon           String?       @db.VarChar(40)
+  isActive       Boolean       @default(true)
+  sortOrder      Int           @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  operations Operation[]
+
+  @@unique([type, normalizedName])
+  @@unique([id, type]) // cible de la clé étrangère composite (Operation.categoryId, Operation.type)
+  @@index([type, isActive, sortOrder])
+}
+
+model Operation {
+  id            String         @id @default(cuid())
+  type          OperationType
+  title         String         @db.VarChar(160)
+  description   String?        @db.VarChar(2000)
+  amount        Decimal        @db.Decimal(14, 2)
+  currency      String         @default("MAD") @db.Char(3)
+  date          DateTime       @db.Date
+  categoryId    String
+  memberId      String
+  fundsSource   FundsSource    @default(FARM)
+  paymentMethod PaymentMethod?
+  counterparty  String?        @db.VarChar(160) // fournisseur (dépense) ou client (revenu)
+  reference     String?        @db.VarChar(100)
+  createdById   String
+  updatedById   String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+  deletedById   String?
+
+  category  Category @relation(fields: [categoryId, type], references: [id, type], onDelete: Restrict, onUpdate: Restrict)
+  member    User     @relation("OperationMember", fields: [memberId], references: [id], onDelete: Restrict)
+  createdBy User     @relation("OperationCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy User?    @relation("OperationUpdater", fields: [updatedById], references: [id], onDelete: Restrict)
+  deletedBy User?    @relation("OperationDeleter", fields: [deletedById], references: [id], onDelete: Restrict)
+
+  @@index([date(sort: Desc), id(sort: Desc)])
+  @@index([type, date(sort: Desc)])
+  @@index([memberId, date(sort: Desc)])
+  @@index([categoryId, date(sort: Desc)])
+  @@index([amount])
+  @@index([createdById])
+  @@index([createdAt(sort: Desc)])
+}
+
+model AuthToken {
+  id        String        @id @default(cuid())
+  userId    String
+  type      AuthTokenType
+  tokenHash String        @unique // SHA-256 du jeton ; le jeton brut n'est jamais stocké
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String   @db.VarChar(254)
+  ip        String?  @db.VarChar(45)
+  success   Boolean
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([ip, createdAt])
+}
+
+model FarmSettings {
+  id            Int       @id @default(1) // ligne unique (CHECK id = 1)
+  farmName      String    @db.VarChar(120)
+  description   String?   @db.VarChar(1000)
+  currency      String    @default("MAD") @db.Char(3)
+  timezone      String    @default("Africa/Casablanca") @db.VarChar(64)
+  dateFormat    String    @default("dd/MM/yyyy") @db.VarChar(20)
+  lockedUntil   DateTime? @db.Date // clôture : aucune opération datée jusqu'à ce jour ne peut être créée/modifiée/supprimée
+  sharesEnabled Boolean   @default(false) // module « parts des associés » (étape 10, non activé)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String   @db.VarChar(60)
+  entityType String   @db.VarChar(40)
+  entityId   String?  @db.VarChar(40)
+  metadata   Json?
+  ip         String?  @db.VarChar(45)
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+}
