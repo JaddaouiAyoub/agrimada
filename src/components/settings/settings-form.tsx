@@ -106,7 +106,7 @@ export function SettingsForm({
             Catégorie présélectionnée lors de la saisie d&apos;une cotisation. Elle reste modifiable à chaque saisie.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="grid gap-5">
           <FormField
             id="defaultContributionCategoryId"
             label="Catégorie par défaut des cotisations"
@@ -120,6 +120,28 @@ export function SettingsForm({
               <option value="">Aucune (à choisir à chaque saisie)</option>
               {revenueCategories
                 .filter((c) => c.isActive || c.id === defaultValues.defaultContributionCategoryId)
+                .map((c) => (
+                  <option key={c.id} value={c.id} disabled={!c.isActive}>
+                    {c.name}
+                    {c.isActive ? "" : " (inactive)"}
+                  </option>
+                ))}
+            </NativeSelect>
+          </FormField>
+          <FormField
+            id="advanceContributionCategoryId"
+            label="Catégorie des cotisations issues d'achats personnels"
+            error={errors.advanceContributionCategoryId?.message}
+            hint="Utilisée quand un membre paie une dépense avec son propre argent et la compte comme cotisation. Si vide, la catégorie par défaut ci-dessus est utilisée."
+            className="sm:max-w-md"
+          >
+            <NativeSelect
+              {...fieldAria("advanceContributionCategoryId", errors.advanceContributionCategoryId?.message, "hint")}
+              {...form.register("advanceContributionCategoryId")}
+            >
+              <option value="">Même que la catégorie par défaut</option>
+              {revenueCategories
+                .filter((c) => c.isActive || c.id === defaultValues.advanceContributionCategoryId)
                 .map((c) => (
                   <option key={c.id} value={c.id} disabled={!c.isActive}>
                     {c.name}

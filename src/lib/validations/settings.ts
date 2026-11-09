@@ -19,5 +19,6 @@ export const settingsSchema = z.object({
   dateFormat: z.enum(DATE_FORMATS),
   lockedUntil: z.union([z.literal(""), z.string().refine(isValidIsoDate, "Date invalide")]),
   defaultContributionCategoryId: z.union([z.literal(""), z.string().regex(ID_REGEX, "Catégorie invalide")]),
+  advanceContributionCategoryId: z.union([z.literal(""), z.string().regex(ID_REGEX, "Catégorie invalide")]),
 });
 export type SettingsValues = z.infer<typeof settingsSchema>;

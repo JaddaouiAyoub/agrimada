@@ -18,7 +18,9 @@ import {
 //
 // Règles (validées) :
 //  - Résultat de la période = revenus − dépenses (ce n'est PAS un solde de trésorerie).
-//  - « Avances » = dépenses payées avec l'argent personnel d'un membre (fundsSource = MEMBER).
+//  - « Avances » = dépenses payées avec l'argent personnel d'un membre (fundsSource = MEMBER),
+//    SAUF celles comptées comme cotisation (cotisation générée active) : la ferme ne doit
+//    rien pour celles-ci, le montant apparaît dans « dont cotisations ».
 //  - « Fonds conservés » = revenus encaissés et gardés par un membre (fundsSource = MEMBER).
 //  - Les cotisations (isContribution) SONT des revenus : elles sont incluses dans tous les
 //    totaux de revenus ; « dont cotisations » n'en est qu'une ventilation.
@@ -171,13 +173,25 @@ async function getContributionsTotal(criteria: DashboardCriteria): Promise<strin
 
 async function getMemberSummaries(criteria: DashboardCriteria): Promise<MemberSummary[]> {
   const where = buildOperationWhere(criteria);
-  const [groups, users] = await Promise.all([
+  const [groups, convertedAdvances, users] = await Promise.all([
     db.operation.groupBy({
       by: ["memberId", "type", "fundsSource", "isContribution"],
       where,
       _sum: { amount: true },
       _count: { _all: true },
     }),
+    // Avances transformées en cotisation : déduites des avances (rien à rembourser).
+    wantsType(criteria, "EXPENSE")
+      ? db.operation.groupBy({
+          by: ["memberId"],
+          where: {
+            ...buildOperationWhere({ ...criteria, type: "EXPENSE" }),
+            fundsSource: "MEMBER",
+            generatedContributions: { some: { deletedAt: null } },
+          },
+          _sum: { amount: true },
+        })
+      : Promise.resolve([]),
     db.user.findMany({
       where: criteria.memberId ? { id: criteria.memberId } : { status: { not: "PENDING" } },
       select: { id: true, name: true, status: true },
@@ -216,6 +230,10 @@ async function getMemberSummaries(criteria: DashboardCriteria): Promise<MemberSu
     }
     s.count += g._count._all;
     summaries.set(g.memberId, s);
+  }
+  for (const c of convertedAdvances) {
+    const s = summaries.get(c.memberId);
+    if (s) s.advances = s.advances.minus(c._sum.amount ?? ZERO);
   }
 
   return users

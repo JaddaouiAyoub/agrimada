@@ -58,6 +58,7 @@ export function OperationForm({
   const { errors } = form.formState;
   const isExpense = type === "EXPENSE";
   const isContribution = !isExpense && form.watch("isContribution");
+  const paidByMember = isExpense && form.watch("fundsSource") === "MEMBER";
   // Le lien « Annuler » ramène à la rubrique d'origine (avant modification de la case).
   const cancelBase = operationBasePath({ type, isContribution: defaultValues.isContribution });
 
@@ -201,9 +202,25 @@ export function OperationForm({
                 </label>
               ))}
             </div>
+            {paidByMember && (
+              <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border bg-card p-3 text-sm transition-colors has-[:checked]:border-primary has-[:checked]:bg-secondary has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 size-4 accent-[var(--primary)]"
+                  {...form.register("advanceAsContribution")}
+                />
+                <span>
+                  <span className="font-medium">Compter aussi comme cotisation de ce membre</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Une cotisation du même montant est créée automatiquement et suit cette dépense (modification,
+                    suppression). Décochez si le membre doit être remboursé.
+                  </span>
+                </span>
+              </label>
+            )}
             <p className="text-xs text-muted-foreground">
               {isExpense
-                ? "Une avance personnelle est suivie dans le résumé par membre (montant brut, hors remboursements)."
+                ? "Une avance personnelle non comptée comme cotisation apparaît dans le résumé par membre comme « avance à rembourser »."
                 : "Un montant conservé par le membre reste un revenu de la ferme ; il est suivi dans le résumé par membre."}
             </p>
           </fieldset>

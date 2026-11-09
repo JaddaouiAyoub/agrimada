@@ -25,3 +25,7 @@ ALTER TABLE "FarmSettings"
 -- Ajoutée par la migration 20261109120000_add_contributions :
 ALTER TABLE "Operation"
   ADD CONSTRAINT "Operation_contribution_is_revenue" CHECK (NOT "isContribution" OR "type" = 'REVENUE');
+
+-- Ajoutée par la migration 20261110120000_expense_contributions :
+ALTER TABLE "Operation"
+  ADD CONSTRAINT "Operation_source_expense_on_contribution" CHECK ("sourceExpenseId" IS NULL OR "isContribution");

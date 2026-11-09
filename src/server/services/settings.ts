@@ -11,13 +11,16 @@ export async function updateSettings(actor: CurrentUser, input: SettingsValues):
   await db.$transaction(async (tx) => {
     const existing = await tx.farmSettings.findUnique({ where: { id: 1 } });
     const defaultContributionCategoryId = input.defaultContributionCategoryId || null;
-    if (defaultContributionCategoryId && defaultContributionCategoryId !== existing?.defaultContributionCategoryId) {
-      const category = await tx.category.findUnique({
-        where: { id: defaultContributionCategoryId },
-        select: { type: true, isActive: true },
-      });
+    const advanceContributionCategoryId = input.advanceContributionCategoryId || null;
+    // Une catégorie de cotisation nouvellement choisie doit être une catégorie de revenu active.
+    for (const [id, current] of [
+      [defaultContributionCategoryId, existing?.defaultContributionCategoryId],
+      [advanceContributionCategoryId, existing?.advanceContributionCategoryId],
+    ] as const) {
+      if (!id || id === current) continue;
+      const category = await tx.category.findUnique({ where: { id }, select: { type: true, isActive: true } });
       if (!category || category.type !== "REVENUE" || !category.isActive) {
-        throw new BusinessError("La catégorie par défaut des cotisations doit être une catégorie de revenu active.");
+        throw new BusinessError("Les catégories de cotisation doivent être des catégories de revenu actives.");
       }
     }
     const next = {
@@ -27,6 +30,7 @@ export async function updateSettings(actor: CurrentUser, input: SettingsValues):
       dateFormat: input.dateFormat,
       lockedUntil: input.lockedUntil ? isoToDbDate(input.lockedUntil) : null,
       defaultContributionCategoryId,
+      advanceContributionCategoryId,
     };
     await tx.farmSettings.upsert({ where: { id: 1 }, create: { id: 1, ...next }, update: next });
 
@@ -38,6 +42,7 @@ export async function updateSettings(actor: CurrentUser, input: SettingsValues):
         dateFormat: existing?.dateFormat ?? null,
         lockedUntil: existing?.lockedUntil ? dbDateToIso(existing.lockedUntil) : null,
         defaultContributionCategoryId: existing?.defaultContributionCategoryId ?? null,
+        advanceContributionCategoryId: existing?.advanceContributionCategoryId ?? null,
       },
       { ...next, lockedUntil: input.lockedUntil || null },
     );

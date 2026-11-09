@@ -14,7 +14,9 @@ export function MemberSummaryTable({ members }: { members: MemberSummary[] }) {
         <TableRow className="hover:bg-transparent">
           <TableHead>Membre</TableHead>
           <TableHead className="text-right">Dépenses payées</TableHead>
-          <TableHead className="text-right">dont avances perso.</TableHead>
+          <TableHead className="text-right" title="Achats payés avec l'argent personnel du membre et non comptés comme cotisation">
+            dont avances à rembourser
+          </TableHead>
           <TableHead className="text-right">Revenus encaissés</TableHead>
           <TableHead className="text-right">dont cotisations</TableHead>
           <TableHead className="text-right">dont conservés</TableHead>

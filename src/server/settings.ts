@@ -13,6 +13,8 @@ export type AppSettings = {
   lockedUntil: string | null;
   /** Catégorie présélectionnée pour une cotisation (peut être devenue inactive). */
   defaultContributionCategoryId: string | null;
+  /** Catégorie des cotisations générées par les achats payés avec l'argent personnel d'un membre. */
+  advanceContributionCategoryId: string | null;
   initialized: boolean;
 };
 
@@ -29,6 +31,7 @@ export const getSettings = cache(async (): Promise<AppSettings> => {
     dateFormat,
     lockedUntil: s?.lockedUntil ? dbDateToIso(s.lockedUntil) : null,
     defaultContributionCategoryId: s?.defaultContributionCategoryId ?? null,
+    advanceContributionCategoryId: s?.advanceContributionCategoryId ?? null,
     initialized: Boolean(s),
   };
 });

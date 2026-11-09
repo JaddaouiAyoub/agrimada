@@ -25,6 +25,9 @@ export const operationFormSchema = z
     fundsSource: z.enum(FUNDS_SOURCES),
     // Uniquement pour les revenus ; ignoré (forcé à false) pour une dépense par le service.
     isContribution: z.boolean(),
+    // Dépense payée avec l'argent personnel du membre : créer aussi une cotisation du même montant.
+    // Ignoré si ce n'est pas une dépense avec fundsSource = MEMBER.
+    advanceAsContribution: z.boolean(),
     paymentMethod: z.union([z.literal(""), z.enum(PAYMENT_METHODS)]),
     // Ignorés (enregistrés vides) pour une cotisation.
     counterparty: z.string().trim().max(160, "160 caractères maximum"),

@@ -280,6 +280,8 @@ export async function OperationFormPage({
     getSettings(),
   ]);
   if (operationId && (!operation || !canEditOperation(user, operation))) notFound();
+  // Cotisation générée par une dépense : elle se modifie via la dépense d'origine.
+  if (operation?.sourceExpenseId) redirect(`/expenses/${operation.sourceExpenseId}/edit`);
   const isContributionPage = type === "REVENUE" && contribution;
   // Une opération s'ouvre toujours depuis sa propre rubrique (Revenus ou Cotisations).
   if (operation && operation.isContribution !== isContributionPage) {
@@ -313,6 +315,7 @@ export async function OperationFormPage({
         memberId: operation.memberId,
         fundsSource: operation.fundsSource,
         isContribution: operation.isContribution,
+        advanceAsContribution: operation.advanceContributionId !== null,
         paymentMethod: operation.paymentMethod ?? "",
         counterparty: operation.counterparty ?? "",
         reference: operation.reference ?? "",
@@ -326,6 +329,8 @@ export async function OperationFormPage({
         memberId: canChooseMember ? "" : user.id,
         fundsSource: "FARM",
         isContribution: isContributionPage,
+        // Coché par défaut ; n'a d'effet que pour une dépense payée avec l'argent du membre.
+        advanceAsContribution: true,
         paymentMethod: "",
         counterparty: "",
         reference: "",
@@ -413,6 +418,30 @@ export async function OperationDetailPage({
       value: operation.paymentMethod ? PAYMENT_METHOD_LABELS[operation.paymentMethod] : "—",
     },
     ...(isContribution ? [] : [{ label: "Référence", value: operation.reference ?? "—" }]),
+    ...(operation.sourceExpenseId
+      ? [
+          {
+            label: "Dépense d'origine",
+            value: (
+              <Link href={`/expenses/${operation.sourceExpenseId}`} className="font-medium hover:underline">
+                Voir la dépense payée par le membre
+              </Link>
+            ),
+          },
+        ]
+      : []),
+    ...(operation.advanceContributionId
+      ? [
+          {
+            label: "Cotisation associée",
+            value: (
+              <Link href={`/contributions/${operation.advanceContributionId}`} className="font-medium hover:underline">
+                Voir la cotisation générée
+              </Link>
+            ),
+          },
+        ]
+      : []),
     { label: "Devise", value: operation.currency },
     { label: "Enregistré par", value: `${operation.createdBy.name} — ${formatDateTime(operation.createdAt, settings.timezone)}` },
     {
@@ -445,7 +474,7 @@ export async function OperationDetailPage({
           type={type}
           title={operation.title}
           isContribution={isContribution}
-          canEdit={canEditOperation(user, operation)}
+          canEdit={canEditOperation(user, operation) && !operation.sourceExpenseId}
           redirectAfterDelete
           variant="buttons"
         />

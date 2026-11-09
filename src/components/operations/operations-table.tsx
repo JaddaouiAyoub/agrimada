@@ -97,7 +97,7 @@ export function OperationsTable({
                 type={op.type}
                 isContribution={op.isContribution}
                 title={op.title}
-                canEdit={canEditOperation(actor, op)}
+                canEdit={canEditOperation(actor, op) && !op.sourceExpenseId}
               />
             </TableCell>
           </TableRow>

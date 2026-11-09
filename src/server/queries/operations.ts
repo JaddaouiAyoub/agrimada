@@ -117,6 +117,7 @@ const listSelect = {
   date: true,
   fundsSource: true,
   isContribution: true,
+  sourceExpenseId: true,
   counterparty: true,
   createdById: true,
   category: { select: { id: true, name: true, color: true, icon: true } },
@@ -135,6 +136,8 @@ export type OperationListItem = {
   date: string;
   fundsSource: FundsSourceValue;
   isContribution: boolean;
+  /** Renseigné si la cotisation a été générée par une dépense (non modifiable directement). */
+  sourceExpenseId: string | null;
   counterparty: string | null;
   createdById: string;
   category: { id: string; name: string; color: string | null; icon: string | null };
@@ -199,6 +202,7 @@ const detailSelect = {
   createdAt: true,
   updatedAt: true,
   updatedBy: { select: { id: true, name: true } },
+  generatedContributions: { where: { deletedAt: null }, select: { id: true }, take: 1 },
 } satisfies Prisma.OperationSelect;
 
 export type OperationDetail = OperationListItem & {
@@ -210,6 +214,8 @@ export type OperationDetail = OperationListItem & {
   createdAt: string;
   updatedAt: string;
   updatedBy: { id: string; name: string } | null;
+  /** Dépense : cotisation générée associée (argent personnel compté comme cotisation). */
+  advanceContributionId: string | null;
 };
 
 export async function getOperation(id: string, type?: OperationTypeValue): Promise<OperationDetail | null> {
@@ -218,8 +224,10 @@ export async function getOperation(id: string, type?: OperationTypeValue): Promi
     select: detailSelect,
   });
   if (!row) return null;
+  const { generatedContributions, ...rest } = row;
   return {
-    ...row,
+    ...rest,
+    advanceContributionId: generatedContributions[0]?.id ?? null,
     amount: row.amount.toFixed(2),
     date: dbDateToIso(row.date),
     createdAt: row.createdAt.toISOString(),

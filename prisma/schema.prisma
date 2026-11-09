@@ -83,8 +83,9 @@ model Category {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  operations              Operation[]
-  defaultForContributions FarmSettings[] @relation("DefaultContributionCategory")
+  operations                     Operation[]
+  defaultForContributions        FarmSettings[] @relation("DefaultContributionCategory")
+  defaultForAdvanceContributions FarmSettings[] @relation("AdvanceContributionCategory")
 
   @@unique([type, normalizedName])
   @@unique([id, type]) // cible de la clé étrangère composite (Operation.categoryId, Operation.type)
@@ -104,6 +105,9 @@ model Operation {
   fundsSource   FundsSource    @default(FARM)
   // Cotisation d'un membre : reste un revenu (type = REVENUE, CHECK SQL), affiché dans sa propre rubrique.
   isContribution Boolean       @default(false)
+  // Cotisation générée automatiquement par une dépense payée avec l'argent personnel du membre.
+  // Une seule cotisation active par dépense (vérifié par le service ; CHECK SQL : cotisation uniquement).
+  sourceExpenseId String?
   paymentMethod PaymentMethod?
   counterparty  String?        @db.VarChar(160) // fournisseur (dépense) ou client (revenu)
   reference     String?        @db.VarChar(100)
@@ -120,9 +124,13 @@ model Operation {
   updatedBy User?    @relation("OperationUpdater", fields: [updatedById], references: [id], onDelete: Restrict)
   deletedBy User?    @relation("OperationDeleter", fields: [deletedById], references: [id], onDelete: Restrict)
 
+  sourceExpense          Operation?  @relation("ExpenseContribution", fields: [sourceExpenseId], references: [id], onDelete: Restrict)
+  generatedContributions Operation[] @relation("ExpenseContribution")
+
   @@index([date(sort: Desc), id(sort: Desc)])
   @@index([type, date(sort: Desc)])
   @@index([type, isContribution, date(sort: Desc)])
+  @@index([sourceExpenseId])
   @@index([memberId, date(sort: Desc)])
   @@index([categoryId, date(sort: Desc)])
   @@index([amount])
@@ -166,10 +174,13 @@ model FarmSettings {
   sharesEnabled Boolean   @default(false) // module « parts des associés » (étape 10, non activé)
   // Catégorie (de revenu) présélectionnée lors de la saisie d'une cotisation.
   defaultContributionCategoryId String?
+  // Catégorie des cotisations générées par les achats payés avec l'argent personnel d'un membre.
+  advanceContributionCategoryId String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   defaultContributionCategory Category? @relation("DefaultContributionCategory", fields: [defaultContributionCategoryId], references: [id], onDelete: SetNull)
+  advanceContributionCategory Category? @relation("AdvanceContributionCategory", fields: [advanceContributionCategoryId], references: [id], onDelete: SetNull)
 }
 
 model AuditLog {

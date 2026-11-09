@@ -169,7 +169,7 @@ async function buildSummarySections(criteria: OperationCriteria, periodLabel: st
       headers: [
         "Membre",
         "Dépenses payées",
-        "dont avances personnelles",
+        "dont avances personnelles à rembourser (hors cotisations)",
         "Revenus encaissés",
         "dont cotisations versées",
         "dont conservés par le membre",

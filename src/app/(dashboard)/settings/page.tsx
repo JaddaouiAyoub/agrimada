@@ -23,6 +23,7 @@ export default async function SettingsPage() {
           dateFormat: settings.dateFormat,
           lockedUntil: settings.lockedUntil ?? "",
           defaultContributionCategoryId: settings.defaultContributionCategoryId ?? "",
+          advanceContributionCategoryId: settings.advanceContributionCategoryId ?? "",
         }}
         revenueCategories={revenueCategories}
       />

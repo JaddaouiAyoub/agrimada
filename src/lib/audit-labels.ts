@@ -54,6 +54,7 @@ const FIELD_LABELS: Record<string, string> = {
   lockedUntil: "Clôture jusqu'au",
   isContribution: "Cotisation",
   defaultContributionCategoryId: "Catégorie par défaut des cotisations",
+  advanceContributionCategoryId: "Catégorie des cotisations issues d'achats personnels",
 };
 
 export function describeAuditAction(action: string): string {
@@ -64,7 +65,12 @@ function formatValue(field: string, value: unknown, names: Record<string, string
   if (value === null || value === undefined || value === "") return "—";
   const v = String(value);
   if (field === "amount") return formatMoney(v);
-  if (field === "categoryId" || field === "memberId" || field === "defaultContributionCategoryId") {
+  if (
+    field === "categoryId" ||
+    field === "memberId" ||
+    field === "defaultContributionCategoryId" ||
+    field === "advanceContributionCategoryId"
+  ) {
     return names[v] ?? "(élément supprimé)";
   }
   if (field === "isContribution") return v === "true" ? "Oui" : "Non";
