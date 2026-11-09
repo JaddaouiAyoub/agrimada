@@ -25,7 +25,8 @@ export async function createOperationAction(type: unknown, input: unknown): Prom
     revalidateFinancialPages();
     return {
       ok: true,
-      message: opType === "EXPENSE" ? "Dépense enregistrée." : "Revenu enregistré.",
+      message:
+        opType === "EXPENSE" ? "Dépense enregistrée." : values.isContribution ? "Cotisation enregistrée." : "Revenu enregistré.",
       data: created,
     };
   });
@@ -45,8 +46,11 @@ export async function updateOperationAction(id: unknown, input: unknown): Promis
 export async function deleteOperationAction(id: unknown): Promise<ActionResult> {
   return runAction(async () => {
     const user = await requireUser();
-    const type = await deleteOperation(user, idSchema.parse(id));
+    const { type, isContribution } = await deleteOperation(user, idSchema.parse(id));
     revalidateFinancialPages();
-    return { ok: true, message: type === "EXPENSE" ? "Dépense supprimée." : "Revenu supprimé." };
+    return {
+      ok: true,
+      message: type === "EXPENSE" ? "Dépense supprimée." : isContribution ? "Cotisation supprimée." : "Revenu supprimé.",
+    };
   });
 }

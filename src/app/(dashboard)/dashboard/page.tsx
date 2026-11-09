@@ -111,6 +111,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         actions={
           <>
             <Button variant="secondary" asChild>
+              <Link href="/contributions/new">
+                <Plus /> Cotisation
+              </Link>
+            </Button>
+            <Button variant="secondary" asChild>
               <Link href="/revenues/new">
                 <Plus /> Revenu
               </Link>
@@ -128,6 +133,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
       <KpiCards
         totals={data.totals}
+        contributions={data.contributions}
         previous={data.previousTotals}
         month={data.monthTotals}
         periodLabel={periodLabel}

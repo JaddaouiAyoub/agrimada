@@ -3,13 +3,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { PageHeader } from "@/components/shared/page-header";
 import { SettingsForm } from "@/components/settings/settings-form";
 import { requireAdminPage } from "@/lib/auth/session";
+import { getCategoryOptions } from "@/server/queries/operations";
 import { getSettings } from "@/server/settings";
 
 export const metadata: Metadata = { title: "Paramètres" };
 
 export default async function SettingsPage() {
   await requireAdminPage();
-  const settings = await getSettings();
+  const [settings, revenueCategories] = await Promise.all([getSettings(), getCategoryOptions("REVENUE")]);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -21,7 +22,9 @@ export default async function SettingsPage() {
           timezone: settings.timezone,
           dateFormat: settings.dateFormat,
           lockedUntil: settings.lockedUntil ?? "",
+          defaultContributionCategoryId: settings.defaultContributionCategoryId ?? "",
         }}
+        revenueCategories={revenueCategories}
       />
       <Card>
         <CardHeader>

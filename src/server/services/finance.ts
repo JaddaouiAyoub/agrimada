@@ -20,6 +20,8 @@ import {
 //  - Résultat de la période = revenus − dépenses (ce n'est PAS un solde de trésorerie).
 //  - « Avances » = dépenses payées avec l'argent personnel d'un membre (fundsSource = MEMBER).
 //  - « Fonds conservés » = revenus encaissés et gardés par un membre (fundsSource = MEMBER).
+//  - Les cotisations (isContribution) SONT des revenus : elles sont incluses dans tous les
+//    totaux de revenus ; « dont cotisations » n'en est qu'une ventilation.
 //  - Ces montants sont BRUTS : les remboursements et la régularisation entre associés
 //    relèvent de l'étape 10, non activée. Aucune dette n'est calculée ici.
 
@@ -41,6 +43,8 @@ export type MemberSummary = {
   status: string;
   expensesPaid: string;
   revenuesReceived: string;
+  /** Cotisations versées par le membre (déjà incluses dans revenuesReceived). */
+  contributionsPaid: string;
   advances: string;
   heldFunds: string;
   operationsCount: number;
@@ -48,6 +52,8 @@ export type MemberSummary = {
 
 export type DashboardData = {
   totals: OperationTotals;
+  /** Part des revenus de la période provenant des cotisations (déjà incluse dans totals.revenue). */
+  contributions: string;
   previousTotals: OperationTotals | null;
   previousRange: DateRange | null;
   monthTotals: OperationTotals;
@@ -153,11 +159,21 @@ async function getCategoryBreakdown(criteria: DashboardCriteria, type: Operation
   });
 }
 
+/** Total des cotisations (revenus isContribution) pour les critères donnés. */
+async function getContributionsTotal(criteria: DashboardCriteria): Promise<string> {
+  if (!wantsType(criteria, "REVENUE")) return ZERO.toFixed(2);
+  const agg = await db.operation.aggregate({
+    where: buildOperationWhere({ ...criteria, type: "REVENUE", isContribution: true }),
+    _sum: { amount: true },
+  });
+  return (agg._sum.amount ?? ZERO).toFixed(2);
+}
+
 async function getMemberSummaries(criteria: DashboardCriteria): Promise<MemberSummary[]> {
   const where = buildOperationWhere(criteria);
   const [groups, users] = await Promise.all([
     db.operation.groupBy({
-      by: ["memberId", "type", "fundsSource"],
+      by: ["memberId", "type", "fundsSource", "isContribution"],
       where,
       _sum: { amount: true },
       _count: { _all: true },
@@ -171,16 +187,31 @@ async function getMemberSummaries(criteria: DashboardCriteria): Promise<MemberSu
 
   const summaries = new Map<
     string,
-    { expenses: Prisma.Decimal; revenues: Prisma.Decimal; advances: Prisma.Decimal; held: Prisma.Decimal; count: number }
+    {
+      expenses: Prisma.Decimal;
+      revenues: Prisma.Decimal;
+      contributions: Prisma.Decimal;
+      advances: Prisma.Decimal;
+      held: Prisma.Decimal;
+      count: number;
+    }
   >();
   for (const g of groups) {
-    const s = summaries.get(g.memberId) ?? { expenses: ZERO, revenues: ZERO, advances: ZERO, held: ZERO, count: 0 };
+    const s = summaries.get(g.memberId) ?? {
+      expenses: ZERO,
+      revenues: ZERO,
+      contributions: ZERO,
+      advances: ZERO,
+      held: ZERO,
+      count: 0,
+    };
     const amount = g._sum.amount ?? ZERO;
     if (g.type === "EXPENSE") {
       s.expenses = s.expenses.plus(amount);
       if (g.fundsSource === "MEMBER") s.advances = s.advances.plus(amount);
     } else {
       s.revenues = s.revenues.plus(amount);
+      if (g.isContribution) s.contributions = s.contributions.plus(amount);
       if (g.fundsSource === "MEMBER") s.held = s.held.plus(amount);
     }
     s.count += g._count._all;
@@ -197,6 +228,7 @@ async function getMemberSummaries(criteria: DashboardCriteria): Promise<MemberSu
         status: u.status,
         expensesPaid: (s?.expenses ?? ZERO).toFixed(2),
         revenuesReceived: (s?.revenues ?? ZERO).toFixed(2),
+        contributionsPaid: (s?.contributions ?? ZERO).toFixed(2),
         advances: (s?.advances ?? ZERO).toFixed(2),
         heldFunds: (s?.held ?? ZERO).toFixed(2),
         operationsCount: s?.count ?? 0,
@@ -217,6 +249,7 @@ export async function getDashboardData(criteria: DashboardCriteria, today: strin
 
   const [
     totals,
+    contributions,
     previousTotals,
     monthTotals,
     seriesRows,
@@ -229,6 +262,7 @@ export async function getDashboardData(criteria: DashboardCriteria, today: strin
     topExpenses,
   ] = await Promise.all([
     getOperationTotals(where),
+    getContributionsTotal(criteria),
     prev ? getOperationTotals(buildOperationWhere({ ...criteria, ...prev })) : Promise.resolve(null),
     getOperationTotals(buildOperationWhere(monthCriteria)),
     getSeries(criteria, granularity),
@@ -245,6 +279,7 @@ export async function getDashboardData(criteria: DashboardCriteria, today: strin
 
   return {
     totals,
+    contributions,
     previousTotals,
     previousRange: prev,
     monthTotals,
@@ -262,11 +297,12 @@ export async function getDashboardData(criteria: DashboardCriteria, today: strin
 
 /** Bilan financier pour l'export : totaux, ventilation par catégorie et par membre. */
 export async function getFinancialSummary(criteria: DashboardCriteria) {
-  const [totals, expensesByCategory, revenuesByCategory, members] = await Promise.all([
+  const [totals, contributions, expensesByCategory, revenuesByCategory, members] = await Promise.all([
     getOperationTotals(buildOperationWhere(criteria)),
+    getContributionsTotal(criteria),
     getCategoryBreakdown(criteria, "EXPENSE"),
     getCategoryBreakdown(criteria, "REVENUE"),
     getMemberSummaries(criteria),
   ]);
-  return { totals, expensesByCategory, revenuesByCategory, members };
+  return { totals, contributions, expensesByCategory, revenuesByCategory, members };
 }

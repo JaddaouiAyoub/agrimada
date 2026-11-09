@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { BusinessError, ForbiddenError } from "@/lib/action-result";
 import type { CurrentUser } from "@/lib/auth/session";
 import { DEFAULT_CURRENCY, type OperationTypeValue } from "@/lib/constants";
-import { dbDateToIso, formatDate, isoToDbDate } from "@/lib/dates";
+import { dbDateToIso, formatDate, formatMonthLabel, isoToDbDate } from "@/lib/dates";
 import { normalizeAmount } from "@/lib/money";
 import { canChooseOperationMember, canEditOperation } from "@/lib/permissions";
 import { emptyToNull } from "@/lib/validations/common";
@@ -51,17 +51,29 @@ async function assertCategoryUsable(categoryId: string, type: OperationTypeValue
   }
 }
 
-function toData(input: OperationFormValues) {
+/** Titre par défaut d'une cotisation : « Cotisation nov. 2026 — Nom du membre ». */
+async function contributionTitle(dateIso: string, memberId: string): Promise<string> {
+  const member = await db.user.findUnique({ where: { id: memberId }, select: { name: true } });
+  const title = `Cotisation ${formatMonthLabel(dateIso.slice(0, 7))}${member ? ` — ${member.name}` : ""}`;
+  return title.slice(0, 160);
+}
+
+async function toData(input: OperationFormValues, type: OperationTypeValue, memberId: string) {
+  // Seul un revenu peut être une cotisation (contrainte CHECK en base).
+  const isContribution = type === "REVENUE" && input.isContribution;
+  const title = input.title.trim();
   return {
-    title: input.title.trim(),
+    title: title || (isContribution ? await contributionTitle(input.date, memberId) : title),
     description: emptyToNull(input.description),
     amount: new Prisma.Decimal(normalizeAmount(input.amount)),
     date: isoToDbDate(input.date),
     categoryId: input.categoryId,
     fundsSource: input.fundsSource,
+    isContribution,
     paymentMethod: input.paymentMethod === "" ? null : input.paymentMethod,
-    counterparty: emptyToNull(input.counterparty),
-    reference: emptyToNull(input.reference),
+    // Champs non proposés pour une cotisation.
+    counterparty: isContribution ? null : emptyToNull(input.counterparty),
+    reference: isContribution ? null : emptyToNull(input.reference),
   };
 }
 
@@ -72,6 +84,7 @@ function auditSnapshot(op: {
   categoryId: string;
   memberId: string;
   fundsSource: string;
+  isContribution: boolean;
   paymentMethod: string | null;
   counterparty: string | null;
   reference: string | null;
@@ -84,6 +97,7 @@ function auditSnapshot(op: {
     categoryId: op.categoryId,
     memberId: op.memberId,
     fundsSource: op.fundsSource,
+    isContribution: op.isContribution ? "true" : "false",
     paymentMethod: op.paymentMethod,
     counterparty: op.counterparty,
     reference: op.reference,
@@ -99,7 +113,7 @@ export async function createOperation(
   await assertNotLocked(input.date);
   const memberId = await resolveMemberId(actor, input.memberId);
   await assertCategoryUsable(input.categoryId, type);
-  const data = toData(input);
+  const data = await toData(input, type, memberId);
 
   return db.$transaction(async (tx) => {
     const created = await tx.operation.create({
@@ -132,7 +146,7 @@ export async function updateOperation(actor: CurrentUser, id: string, input: Ope
   await assertNotLocked(input.date);
   const memberId = await resolveMemberId(actor, input.memberId, existing.memberId);
   await assertCategoryUsable(input.categoryId, existing.type, existing.categoryId);
-  const data = toData(input);
+  const data = await toData(input, existing.type, memberId);
 
   const changes = diffFields(auditSnapshot(existing), auditSnapshot({ ...data, memberId }));
   if (Object.keys(changes).length === 0) return;
@@ -155,7 +169,10 @@ export async function updateOperation(actor: CurrentUser, id: string, input: Ope
 }
 
 /** Suppression logique : l'opération disparaît des listes et calculs mais reste tracée. */
-export async function deleteOperation(actor: CurrentUser, id: string): Promise<OperationTypeValue> {
+export async function deleteOperation(
+  actor: CurrentUser,
+  id: string,
+): Promise<{ type: OperationTypeValue; isContribution: boolean }> {
   const existing = await loadEditable(actor, id);
   await assertNotLocked(dbDateToIso(existing.date));
 
@@ -173,5 +190,5 @@ export async function deleteOperation(actor: CurrentUser, id: string): Promise<O
       metadata: { type: existing.type, ...auditSnapshot(existing) },
     });
   });
-  return existing.type;
+  return { type: existing.type, isContribution: existing.isContribution };
 }

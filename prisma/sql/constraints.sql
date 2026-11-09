@@ -21,3 +21,7 @@ ALTER TABLE "Category"
 
 ALTER TABLE "FarmSettings"
   ADD CONSTRAINT "FarmSettings_singleton" CHECK ("id" = 1);
+
+-- Ajoutée par la migration 20261109120000_add_contributions :
+ALTER TABLE "Operation"
+  ADD CONSTRAINT "Operation_contribution_is_revenue" CHECK (NOT "isContribution" OR "type" = 'REVENUE');

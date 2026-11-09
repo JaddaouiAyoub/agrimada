@@ -20,6 +20,8 @@ export type OperationSort = (typeof OPERATION_SORTS)[number];
 /** Critères de filtrage communs (listes, exports, dashboard). */
 export type OperationCriteria = {
   type?: OperationTypeValue;
+  /** true : cotisations uniquement ; false : hors cotisations ; absent : tout. Jamais lu depuis l'URL. */
+  isContribution?: boolean;
   q?: string;
   memberId?: string;
   categoryId?: string;

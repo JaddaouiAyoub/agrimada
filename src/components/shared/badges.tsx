@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, HandCoins } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { getCategoryIcon } from "@/lib/category-icons";
 import {
@@ -16,6 +16,16 @@ export function OperationTypeBadge({ type }: { type: OperationTypeValue }) {
     <Badge variant={type === "REVENUE" ? "revenue" : "expense"}>
       {type === "REVENUE" ? <ArrowUpRight aria-hidden /> : <ArrowDownRight aria-hidden />}
       {OPERATION_TYPE_LABELS[type]}
+    </Badge>
+  );
+}
+
+/** Marque une cotisation (revenu affiché dans la rubrique Cotisations). */
+export function ContributionBadge() {
+  return (
+    <Badge variant="muted">
+      <HandCoins aria-hidden />
+      Cotisation
     </Badge>
   );
 }

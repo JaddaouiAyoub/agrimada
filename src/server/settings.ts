@@ -11,6 +11,8 @@ export type AppSettings = {
   timezone: string;
   dateFormat: DateFormatValue;
   lockedUntil: string | null;
+  /** Catégorie présélectionnée pour une cotisation (peut être devenue inactive). */
+  defaultContributionCategoryId: string | null;
   initialized: boolean;
 };
 
@@ -26,6 +28,7 @@ export const getSettings = cache(async (): Promise<AppSettings> => {
     timezone: s?.timezone ?? DEFAULT_TIMEZONE,
     dateFormat,
     lockedUntil: s?.lockedUntil ? dbDateToIso(s.lockedUntil) : null,
+    defaultContributionCategoryId: s?.defaultContributionCategoryId ?? null,
     initialized: Boolean(s),
   };
 });

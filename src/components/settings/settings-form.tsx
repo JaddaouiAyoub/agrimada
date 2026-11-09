@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { LoaderCircle, Lock } from "lucide-react";
+import { HandCoins, LoaderCircle, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +14,15 @@ import { DATE_FORMATS, DATE_FORMAT_LABELS, TIMEZONES } from "@/lib/constants";
 import { settingsSchema, type SettingsValues } from "@/lib/validations/settings";
 import { updateSettingsAction } from "@/server/actions/settings";
 
-export function SettingsForm({ defaultValues }: { defaultValues: SettingsValues }) {
+type CategoryOption = { id: string; name: string; isActive: boolean };
+
+export function SettingsForm({
+  defaultValues,
+  revenueCategories,
+}: {
+  defaultValues: SettingsValues;
+  revenueCategories: CategoryOption[];
+}) {
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
   const form = useForm<SettingsValues>({ resolver: zodResolver(settingsSchema), defaultValues });
@@ -84,6 +92,40 @@ export function SettingsForm({ defaultValues }: { defaultValues: SettingsValues 
                   {DATE_FORMAT_LABELS[f]}
                 </option>
               ))}
+            </NativeSelect>
+          </FormField>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <HandCoins className="size-4 text-muted-foreground" aria-hidden /> Cotisations
+          </CardTitle>
+          <CardDescription>
+            Catégorie présélectionnée lors de la saisie d&apos;une cotisation. Elle reste modifiable à chaque saisie.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FormField
+            id="defaultContributionCategoryId"
+            label="Catégorie par défaut des cotisations"
+            error={errors.defaultContributionCategoryId?.message}
+            className="sm:max-w-md"
+          >
+            <NativeSelect
+              {...fieldAria("defaultContributionCategoryId", errors.defaultContributionCategoryId?.message)}
+              {...form.register("defaultContributionCategoryId")}
+            >
+              <option value="">Aucune (à choisir à chaque saisie)</option>
+              {revenueCategories
+                .filter((c) => c.isActive || c.id === defaultValues.defaultContributionCategoryId)
+                .map((c) => (
+                  <option key={c.id} value={c.id} disabled={!c.isActive}>
+                    {c.name}
+                    {c.isActive ? "" : " (inactive)"}
+                  </option>
+                ))}
             </NativeSelect>
           </FormField>
         </CardContent>

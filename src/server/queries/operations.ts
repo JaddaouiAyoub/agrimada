@@ -13,6 +13,7 @@ import type { OperationCriteria, OperationListFilters, OperationSort } from "@/l
 export function buildOperationWhere(c: OperationCriteria): Prisma.OperationWhereInput {
   const where: Prisma.OperationWhereInput = { deletedAt: null };
   if (c.type) where.type = c.type;
+  if (c.isContribution !== undefined) where.isContribution = c.isContribution;
   if (c.memberId) where.memberId = c.memberId;
   if (c.categoryId) where.categoryId = c.categoryId;
   if (c.from || c.to) {
@@ -42,6 +43,7 @@ function escapeLike(value: string): string {
 export function buildOperationSqlWhere(c: OperationCriteria): Prisma.Sql {
   const conditions: Prisma.Sql[] = [Prisma.sql`"deletedAt" IS NULL`];
   if (c.type) conditions.push(Prisma.sql`"type" = ${c.type}::"OperationType"`);
+  if (c.isContribution !== undefined) conditions.push(Prisma.sql`"isContribution" = ${c.isContribution}`);
   if (c.memberId) conditions.push(Prisma.sql`"memberId" = ${c.memberId}`);
   if (c.categoryId) conditions.push(Prisma.sql`"categoryId" = ${c.categoryId}`);
   if (c.from) conditions.push(Prisma.sql`"date" >= ${c.from}::date`);
@@ -114,6 +116,7 @@ const listSelect = {
   currency: true,
   date: true,
   fundsSource: true,
+  isContribution: true,
   counterparty: true,
   createdById: true,
   category: { select: { id: true, name: true, color: true, icon: true } },
@@ -131,6 +134,7 @@ export type OperationListItem = {
   currency: string;
   date: string;
   fundsSource: FundsSourceValue;
+  isContribution: boolean;
   counterparty: string | null;
   createdById: string;
   category: { id: string; name: string; color: string | null; icon: string | null };
@@ -236,6 +240,7 @@ const exportSelect = {
   currency: true,
   date: true,
   fundsSource: true,
+  isContribution: true,
   paymentMethod: true,
   counterparty: true,
   reference: true,

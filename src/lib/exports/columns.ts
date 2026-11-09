@@ -16,6 +16,7 @@ const text = (value: string | null | undefined): CellValue => ({ kind: "text", v
 export const OPERATION_EXPORT_COLUMNS: ExportColumn[] = [
   { header: "Date", width: 12, get: (r) => ({ kind: "date", value: dbDateToIso(r.date) }) },
   { header: "Type", width: 10, get: (r) => text(OPERATION_TYPE_LABELS[r.type]) },
+  { header: "Cotisation", width: 11, get: (r) => text(r.type === "REVENUE" ? (r.isContribution ? "Oui" : "Non") : "") },
   { header: "Titre", width: 32, get: (r) => text(r.title) },
   { header: "Description", width: 40, get: (r) => text(r.description) },
   { header: "Catégorie", width: 28, get: (r) => text(r.category.name) },

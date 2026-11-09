@@ -52,6 +52,8 @@ const FIELD_LABELS: Record<string, string> = {
   timezone: "Fuseau horaire",
   dateFormat: "Format des dates",
   lockedUntil: "Clôture jusqu'au",
+  isContribution: "Cotisation",
+  defaultContributionCategoryId: "Catégorie par défaut des cotisations",
 };
 
 export function describeAuditAction(action: string): string {
@@ -62,7 +64,10 @@ function formatValue(field: string, value: unknown, names: Record<string, string
   if (value === null || value === undefined || value === "") return "—";
   const v = String(value);
   if (field === "amount") return formatMoney(v);
-  if (field === "categoryId" || field === "memberId") return names[v] ?? "(élément supprimé)";
+  if (field === "categoryId" || field === "memberId" || field === "defaultContributionCategoryId") {
+    return names[v] ?? "(élément supprimé)";
+  }
+  if (field === "isContribution") return v === "true" ? "Oui" : "Non";
   if (field === "fundsSource") return v === "MEMBER" ? "Argent du membre" : "Fonds de la ferme";
   if (field === "paymentMethod") return PAYMENT_METHOD_LABELS[v as PaymentMethodValue] ?? v;
   if (field === "role") return ROLE_LABELS[v as RoleValue] ?? v;

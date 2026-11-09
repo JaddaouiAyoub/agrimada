@@ -24,7 +24,7 @@ import { getSettings } from "@/server/settings";
 
 export const dynamic = "force-dynamic";
 
-const DATASETS = ["operations", "expenses", "revenues", "summary"] as const;
+const DATASETS = ["operations", "expenses", "revenues", "contributions", "summary"] as const;
 type Dataset = (typeof DATASETS)[number];
 const FORMATS = ["csv", "xlsx"] as const;
 type Format = (typeof FORMATS)[number];
@@ -33,6 +33,7 @@ const DATASET_SLUGS: Record<Dataset, string> = {
   operations: "operations",
   expenses: "depenses",
   revenues: "revenus",
+  contributions: "cotisations",
   summary: "bilan",
 };
 
@@ -154,7 +155,8 @@ async function buildSummarySections(criteria: OperationCriteria, periodLabel: st
       title: `Bilan financier — ${periodLabel}`,
       headers: ["Indicateur", "Valeur"],
       rows: [
-        [t("Revenus de la ferme"), a(summary.totals.revenue)],
+        [t("Revenus de la ferme (cotisations comprises)"), a(summary.totals.revenue)],
+        [t("dont cotisations"), a(summary.contributions)],
         [t("Dépenses de la ferme"), a(summary.totals.expense)],
         [t("Résultat de la période (revenus − dépenses, hors trésorerie)"), a(summary.totals.result)],
         [t("Nombre d'opérations"), t(String(summary.totals.count))],
@@ -164,12 +166,21 @@ async function buildSummarySections(criteria: OperationCriteria, periodLabel: st
     breakdown("REVENUE", summary.revenuesByCategory),
     {
       title: "Résumé par membre (montants bruts, hors remboursements)",
-      headers: ["Membre", "Dépenses payées", "dont avances personnelles", "Revenus encaissés", "dont conservés par le membre", "Opérations"],
+      headers: [
+        "Membre",
+        "Dépenses payées",
+        "dont avances personnelles",
+        "Revenus encaissés",
+        "dont cotisations versées",
+        "dont conservés par le membre",
+        "Opérations",
+      ],
       rows: summary.members.map((m) => [
         t(m.name),
         a(m.expensesPaid),
         a(m.advances),
         a(m.revenuesReceived),
+        a(m.contributionsPaid),
         a(m.heldFunds),
         t(String(m.operationsCount)),
       ]),
@@ -191,7 +202,7 @@ function summaryCsv(sections: Section[]): string {
 function summaryXlsx(sections: Section[]): ReadableStream<Uint8Array> {
   const { workbook, stream } = createStreamingWorkbook();
   const sheet = workbook.addWorksheet("Bilan");
-  sheet.columns = [{ width: 58 }, { width: 18 }, { width: 24 }, { width: 18 }, { width: 26 }, { width: 12 }];
+  sheet.columns = [{ width: 58 }, { width: 18 }, { width: 24 }, { width: 18 }, { width: 24 }, { width: 26 }, { width: 12 }];
   void (async () => {
     try {
       for (const s of sections) {
@@ -236,8 +247,15 @@ export async function GET(request: NextRequest) {
     to: pickDate(first(sp, "to")),
   });
   const forcedType: OperationTypeValue | undefined =
-    dataset === "expenses" ? "EXPENSE" : dataset === "revenues" ? "REVENUE" : undefined;
-  const criteria: OperationCriteria = { ...parseOperationCriteria(sp, forcedType), from: range.from, to: range.to };
+    dataset === "expenses" ? "EXPENSE" : dataset === "revenues" || dataset === "contributions" ? "REVENUE" : undefined;
+  // Même découpage que les pages : « Revenus » hors cotisations, « Cotisations » seules.
+  const isContribution = dataset === "contributions" ? true : dataset === "revenues" ? false : undefined;
+  const criteria: OperationCriteria = {
+    ...parseOperationCriteria(sp, forcedType),
+    isContribution,
+    from: range.from,
+    to: range.to,
+  };
 
   const filename = `farmshare-${DATASET_SLUGS[dataset]}-${periodSlug(range)}.${format}`;
   const periodLabel =
@@ -260,7 +278,14 @@ export async function GET(request: NextRequest) {
     return new Response(body, { headers: contentHeaders(format, filename) });
   }
 
-  const sheetName = dataset === "expenses" ? "Dépenses" : dataset === "revenues" ? "Revenus" : "Opérations";
+  const sheetName =
+    dataset === "expenses"
+      ? "Dépenses"
+      : dataset === "revenues"
+        ? "Revenus"
+        : dataset === "contributions"
+          ? "Cotisations"
+          : "Opérations";
   const body = format === "csv" ? streamOperationsCsv(criteria) : streamOperationsXlsx(criteria, sheetName);
   return new Response(body, { headers: contentHeaders(format, filename) });
 }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Download, Inbox, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { Pagination } from "@/components/shared/pagination";
 import { UrlFilters, type FilterField } from "@/components/shared/url-filters";
-import { CategoryLabel, OperationTypeBadge, SignedAmount } from "@/components/shared/badges";
+import { CategoryLabel, ContributionBadge, OperationTypeBadge, SignedAmount } from "@/components/shared/badges";
 import { OperationForm } from "@/components/operations/operation-form";
 import { OperationRowActions } from "@/components/operations/operation-row-actions";
 import { OperationsTable } from "@/components/operations/operations-table";
@@ -20,9 +20,9 @@ import {
   MEMBER_ROLE_LABELS,
   OPERATION_TYPES,
   OPERATION_TYPE_LABELS,
-  OPERATION_TYPE_PATHS,
   OPERATION_TYPE_PLURAL,
   PAYMENT_METHOD_LABELS,
+  operationBasePath,
   type OperationTypeValue,
 } from "@/lib/constants";
 import { formatDate, formatDateTime, todayInTimeZone } from "@/lib/dates";
@@ -39,20 +39,27 @@ import { getSettings } from "@/server/settings";
 const FILTER_KEYS = ["q", "type", "member", "category", "from", "to", "min", "max"] as const;
 
 // ---------------------------------------------------------------------------
-// Liste (Dépenses, Revenus, ou vue unifiée « Opérations »)
+// Liste (Dépenses, Revenus, Cotisations, ou vue unifiée « Opérations »)
 // ---------------------------------------------------------------------------
 
 export async function OperationListPage({
   type,
+  contribution = false,
   basePath,
   searchParams,
 }: {
   type?: OperationTypeValue;
+  /** Avec type = REVENUE : true = rubrique Cotisations, false = Revenus hors cotisations. */
+  contribution?: boolean;
   basePath: string;
   searchParams: SearchParams;
 }) {
   const user = await requireUser();
-  const filters = parseOperationListFilters(searchParams, type);
+  const isContributions = type === "REVENUE" && contribution;
+  const filters = {
+    ...parseOperationListFilters(searchParams, type),
+    isContribution: type === "REVENUE" ? isContributions : undefined,
+  };
   const [result, members, categories, settings] = await Promise.all([
     listOperations(filters),
     getMemberOptions(),
@@ -70,7 +77,13 @@ export async function OperationListPage({
       kind: "search",
       name: "q",
       label: "Recherche",
-      placeholder: type === "REVENUE" ? "Titre, client…" : type === "EXPENSE" ? "Titre, fournisseur…" : "Titre, tiers, référence…",
+      placeholder: isContributions
+        ? "Titre, note…"
+        : type === "REVENUE"
+          ? "Titre, client…"
+          : type === "EXPENSE"
+            ? "Titre, fournisseur…"
+            : "Titre, tiers, référence…",
       className: "w-full sm:w-64",
     },
     ...(!type
@@ -87,7 +100,7 @@ export async function OperationListPage({
     {
       kind: "select",
       name: "member",
-      label: type ? MEMBER_ROLE_LABELS[type] : "Membre",
+      label: isContributions ? "Cotisant" : type ? MEMBER_ROLE_LABELS[type] : "Membre",
       allLabel: "Tous les membres",
       options: members.map((m) => ({ value: m.id, label: m.status === "DISABLED" ? `${m.name} (désactivé)` : m.name })),
     },
@@ -108,8 +121,15 @@ export async function OperationListPage({
     { kind: "amount", name: "max", label: "Montant max.", className: "w-28" },
   ];
 
-  const title = type ? OPERATION_TYPE_PLURAL[type] : "Opérations";
-  const exportDataset = type === "EXPENSE" ? "expenses" : type === "REVENUE" ? "revenues" : "operations";
+  const title = isContributions ? "Cotisations" : type ? OPERATION_TYPE_PLURAL[type] : "Opérations";
+  const exportDataset = isContributions
+    ? "contributions"
+    : type === "EXPENSE"
+      ? "expenses"
+      : type === "REVENUE"
+        ? "revenues"
+        : "operations";
+  const newLabel = isContributions ? "Nouvelle cotisation" : type === "EXPENSE" ? "Nouvelle dépense" : "Nouveau revenu";
   const exportHref = (format: "csv" | "xlsx") =>
     `/api/exports${buildQuery({ ...values, dataset: exportDataset, format, period: values.from || values.to ? "custom" : "all" })}`;
 
@@ -118,9 +138,13 @@ export async function OperationListPage({
       <PageHeader
         title={title}
         description={
-          type
-            ? `Toutes les ${type === "EXPENSE" ? "dépenses" : "recettes"} de la ferme.`
-            : "Historique unifié des dépenses et des revenus."
+          isContributions
+            ? "Cotisations versées par les membres. Elles sont comptées dans les revenus de la ferme."
+            : type === "REVENUE"
+              ? "Toutes les recettes de la ferme, hors cotisations (voir la rubrique Cotisations)."
+              : type
+                ? "Toutes les dépenses de la ferme."
+                : "Historique unifié des dépenses, revenus et cotisations."
         }
         actions={
           <>
@@ -137,11 +161,16 @@ export async function OperationListPage({
             {type ? (
               <Button asChild>
                 <Link href={`${basePath}/new`}>
-                  <Plus /> {type === "EXPENSE" ? "Nouvelle dépense" : "Nouveau revenu"}
+                  <Plus /> {newLabel}
                 </Link>
               </Button>
             ) : (
               <>
+                <Button asChild variant="secondary">
+                  <Link href="/contributions/new">
+                    <Plus /> Cotisation
+                  </Link>
+                </Button>
                 <Button asChild variant="secondary">
                   <Link href="/revenues/new">
                     <Plus /> Revenu
@@ -160,7 +189,7 @@ export async function OperationListPage({
 
       <UrlFilters basePath={basePath} fields={fields} values={values} preserved={preserved} />
 
-      <TotalsBar totals={result.totals} type={type} />
+      <TotalsBar totals={result.totals} type={type} revenueLabel={isContributions ? "Total cotisations" : undefined} />
 
       <Card className="overflow-hidden">
         {result.items.length > 0 ? (
@@ -169,6 +198,7 @@ export async function OperationListPage({
             actor={user}
             type={type}
             dateFormat={settings.dateFormat}
+            memberLabel={isContributions ? "Cotisant" : undefined}
             sort={filters.sort}
             basePath={basePath}
             params={params}
@@ -183,7 +213,9 @@ export async function OperationListPage({
                   ? "Aucune opération ne correspond aux filtres"
                   : type === "EXPENSE"
                     ? "Aucune dépense enregistrée"
-                    : type === "REVENUE"
+                    : isContributions
+                      ? "Aucune cotisation enregistrée"
+                      : type === "REVENUE"
                       ? "Aucun revenu enregistré"
                       : "Aucune opération enregistrée"
             }
@@ -202,7 +234,8 @@ export async function OperationListPage({
               ) : !hasFilters && type ? (
                 <Button asChild>
                   <Link href={`${basePath}/new`}>
-                    <Plus /> {type === "EXPENSE" ? "Ajouter une dépense" : "Ajouter un revenu"}
+                    <Plus />{" "}
+                    {isContributions ? "Ajouter une cotisation" : type === "EXPENSE" ? "Ajouter une dépense" : "Ajouter un revenu"}
                   </Link>
                 </Button>
               ) : undefined
@@ -227,7 +260,16 @@ export async function OperationListPage({
 // Création / modification
 // ---------------------------------------------------------------------------
 
-export async function OperationFormPage({ type, operationId }: { type: OperationTypeValue; operationId?: string }) {
+export async function OperationFormPage({
+  type,
+  operationId,
+  contribution = false,
+}: {
+  type: OperationTypeValue;
+  operationId?: string;
+  /** Page de la rubrique Cotisations (nouvelle saisie pré-cochée « cotisation »). */
+  contribution?: boolean;
+}) {
   const user = await requireUser();
   if (operationId !== undefined && !ID_REGEX.test(operationId)) notFound();
 
@@ -238,6 +280,11 @@ export async function OperationFormPage({ type, operationId }: { type: Operation
     getSettings(),
   ]);
   if (operationId && (!operation || !canEditOperation(user, operation))) notFound();
+  const isContributionPage = type === "REVENUE" && contribution;
+  // Une opération s'ouvre toujours depuis sa propre rubrique (Revenus ou Cotisations).
+  if (operation && operation.isContribution !== isContributionPage) {
+    redirect(`${operationBasePath(operation)}/${operation.id}/edit`);
+  }
 
   const canChooseMember = canChooseOperationMember(user);
   const memberOptions = canChooseMember
@@ -250,6 +297,11 @@ export async function OperationFormPage({ type, operationId }: { type: Operation
   const categoryOptions = categories
     .filter((c) => c.isActive || c.id === operation?.categoryId)
     .map((c) => ({ id: c.id, name: c.name, disabled: false }));
+  // Catégorie par défaut des cotisations, seulement si elle est proposée (active, de revenu).
+  const defaultContributionCategoryId =
+    type === "REVENUE" && categoryOptions.some((c) => c.id === settings.defaultContributionCategoryId)
+      ? settings.defaultContributionCategoryId
+      : null;
 
   const defaults: OperationFormValues = operation
     ? {
@@ -260,6 +312,7 @@ export async function OperationFormPage({ type, operationId }: { type: Operation
         categoryId: operation.categoryId,
         memberId: operation.memberId,
         fundsSource: operation.fundsSource,
+        isContribution: operation.isContribution,
         paymentMethod: operation.paymentMethod ?? "",
         counterparty: operation.counterparty ?? "",
         reference: operation.reference ?? "",
@@ -269,16 +322,18 @@ export async function OperationFormPage({ type, operationId }: { type: Operation
         description: "",
         amount: "",
         date: todayInTimeZone(settings.timezone),
-        categoryId: "",
+        categoryId: isContributionPage ? (defaultContributionCategoryId ?? "") : "",
         memberId: canChooseMember ? "" : user.id,
         fundsSource: "FARM",
+        isContribution: isContributionPage,
         paymentMethod: "",
         counterparty: "",
         reference: "",
       };
 
-  const basePath = OPERATION_TYPE_PATHS[type];
-  const noun = type === "EXPENSE" ? "dépense" : "revenu";
+  const basePath = operationBasePath({ type, isContribution: isContributionPage });
+  const noun = isContributionPage ? "cotisation" : type === "EXPENSE" ? "dépense" : "revenu";
+  const feminine = isContributionPage || type === "EXPENSE";
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -288,7 +343,7 @@ export async function OperationFormPage({ type, operationId }: { type: Operation
         </Link>
       </Button>
       <PageHeader
-        title={operation ? `Modifier ${type === "EXPENSE" ? "la" : "le"} ${noun}` : `${type === "EXPENSE" ? "Nouvelle" : "Nouveau"} ${noun}`}
+        title={operation ? `Modifier ${feminine ? "la" : "le"} ${noun}` : `${feminine ? "Nouvelle" : "Nouveau"} ${noun}`}
         description="Les champs marqués d'un astérisque sont obligatoires."
       />
       {categoryOptions.length === 0 ? (
@@ -308,6 +363,7 @@ export async function OperationFormPage({ type, operationId }: { type: Operation
           members={memberOptions}
           canChooseMember={canChooseMember}
           lockedUntil={settings.lockedUntil}
+          defaultContributionCategoryId={defaultContributionCategoryId}
         />
       )}
     </div>
@@ -318,31 +374,45 @@ export async function OperationFormPage({ type, operationId }: { type: Operation
 // Fiche détail
 // ---------------------------------------------------------------------------
 
-export async function OperationDetailPage({ type, operationId }: { type: OperationTypeValue; operationId: string }) {
+export async function OperationDetailPage({
+  type,
+  operationId,
+  contribution = false,
+}: {
+  type: OperationTypeValue;
+  operationId: string;
+  contribution?: boolean;
+}) {
   const user = await requireUser();
   if (!ID_REGEX.test(operationId)) notFound();
   const [operation, settings] = await Promise.all([getOperation(operationId, type), getSettings()]);
   if (!operation) notFound();
+  const isContribution = operation.isContribution;
+  // Une opération s'affiche toujours dans sa propre rubrique (Revenus ou Cotisations).
+  if (isContribution !== (type === "REVENUE" && contribution)) redirect(`${operationBasePath(operation)}/${operation.id}`);
   const [history, names] = await Promise.all([
     getEntityHistory("Operation", operation.id),
     getReferenceNames(),
   ]);
 
-  const basePath = OPERATION_TYPE_PATHS[type];
+  const basePath = operationBasePath(operation);
   const rows: { label: string; value: React.ReactNode }[] = [
-    { label: type === "EXPENSE" ? "Date de la dépense" : "Date d'encaissement", value: formatDate(operation.date, settings.dateFormat) },
+    {
+      label: type === "EXPENSE" ? "Date de la dépense" : isContribution ? "Date de la cotisation" : "Date d'encaissement",
+      value: formatDate(operation.date, settings.dateFormat),
+    },
     {
       label: "Catégorie",
       value: <CategoryLabel name={operation.category.name} color={operation.category.color} icon={operation.category.icon} />,
     },
-    { label: MEMBER_ROLE_LABELS[type], value: operation.member.name },
+    { label: isContribution ? "Cotisant" : MEMBER_ROLE_LABELS[type], value: operation.member.name },
     { label: "Origine des fonds", value: FUNDS_SOURCE_LABELS[type][operation.fundsSource] },
-    { label: COUNTERPARTY_LABELS[type], value: operation.counterparty ?? "—" },
+    ...(isContribution ? [] : [{ label: COUNTERPARTY_LABELS[type], value: operation.counterparty ?? "—" }]),
     {
       label: type === "EXPENSE" ? "Mode de paiement" : "Mode d'encaissement",
       value: operation.paymentMethod ? PAYMENT_METHOD_LABELS[operation.paymentMethod] : "—",
     },
-    { label: "Référence", value: operation.reference ?? "—" },
+    ...(isContribution ? [] : [{ label: "Référence", value: operation.reference ?? "—" }]),
     { label: "Devise", value: operation.currency },
     { label: "Enregistré par", value: `${operation.createdBy.name} — ${formatDateTime(operation.createdAt, settings.timezone)}` },
     {
@@ -357,13 +427,16 @@ export async function OperationDetailPage({ type, operationId }: { type: Operati
     <div className="mx-auto max-w-4xl space-y-6">
       <Button variant="ghost" size="sm" asChild className="-ml-2">
         <Link href={basePath}>
-          <ArrowLeft /> {OPERATION_TYPE_PLURAL[type]}
+          <ArrowLeft /> {isContribution ? "Cotisations" : OPERATION_TYPE_PLURAL[type]}
         </Link>
       </Button>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-2">
-          <OperationTypeBadge type={type} />
+          <div className="flex flex-wrap gap-2">
+            <OperationTypeBadge type={type} />
+            {isContribution && <ContributionBadge />}
+          </div>
           <h1 className="text-2xl font-semibold tracking-tight break-words">{operation.title}</h1>
           <SignedAmount type={type} amount={operation.amount} className="text-3xl font-semibold" />
         </div>
@@ -371,6 +444,7 @@ export async function OperationDetailPage({ type, operationId }: { type: Operati
           id={operation.id}
           type={type}
           title={operation.title}
+          isContribution={isContribution}
           canEdit={canEditOperation(user, operation)}
           redirectAfterDelete
           variant="buttons"

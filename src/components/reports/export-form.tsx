@@ -12,9 +12,10 @@ import { buildQuery, cn } from "@/lib/utils";
 type Option = { value: string; label: string };
 
 const DATASETS = [
-  { value: "operations", label: "Toutes les opérations", description: "Dépenses et revenus dans un même fichier." },
+  { value: "operations", label: "Toutes les opérations", description: "Dépenses, revenus et cotisations dans un même fichier." },
   { value: "expenses", label: "Dépenses", description: "Uniquement les dépenses." },
-  { value: "revenues", label: "Revenus", description: "Uniquement les revenus." },
+  { value: "revenues", label: "Revenus", description: "Uniquement les revenus, hors cotisations." },
+  { value: "contributions", label: "Cotisations", description: "Uniquement les cotisations des membres." },
   { value: "summary", label: "Bilan financier", description: "Totaux, ventilation par catégorie et par membre." },
 ] as const;
 

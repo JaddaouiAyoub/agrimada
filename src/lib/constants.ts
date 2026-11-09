@@ -53,6 +53,14 @@ export const OPERATION_TYPE_PATHS: Record<OperationTypeValue, string> = {
   REVENUE: "/revenues",
 };
 
+/** Rubrique des cotisations : revenus marqués isContribution = true. */
+export const CONTRIBUTIONS_PATH = "/contributions";
+
+/** Rubrique d'une opération : les cotisations ont leurs propres pages. */
+export function operationBasePath(op: { type: OperationTypeValue; isContribution?: boolean }): string {
+  return op.type === "REVENUE" && op.isContribution ? CONTRIBUTIONS_PATH : OPERATION_TYPE_PATHS[op.type];
+}
+
 export const FUNDS_SOURCE_LABELS: Record<OperationTypeValue, Record<FundsSourceValue, string>> = {
   EXPENSE: {
     FARM: "Payée avec les fonds de la ferme",

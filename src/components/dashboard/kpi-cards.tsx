@@ -23,12 +23,15 @@ function delta(current: string, previous: string | undefined): number | null {
 
 export function KpiCards({
   totals,
+  contributions,
   previous,
   month,
   periodLabel,
   monthLabel,
 }: {
   totals: OperationTotals;
+  /** Part des revenus provenant des cotisations (incluse dans totals.revenue). */
+  contributions: string;
   previous: OperationTotals | null;
   month: OperationTotals;
   periodLabel: string;
@@ -40,7 +43,7 @@ export function KpiCards({
       value: formatMoney(totals.revenue),
       icon: ArrowUpRight,
       tone: "revenue",
-      hint: periodLabel,
+      hint: Number(contributions) > 0 ? `dont cotisations : ${formatMoney(contributions)} · ${periodLabel}` : periodLabel,
       delta: previous ? { ratio: delta(totals.revenue, previous.revenue) ?? NaN, goodWhenUp: true } : null,
     },
     {

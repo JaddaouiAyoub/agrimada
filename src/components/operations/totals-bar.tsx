@@ -4,11 +4,19 @@ import { cn } from "@/lib/utils";
 import type { OperationTotals } from "@/server/queries/operations";
 
 /** Totaux correspondant aux filtres actifs (calculés en SQL sur l'ensemble des résultats). */
-export function TotalsBar({ totals, type }: { totals: OperationTotals; type?: OperationTypeValue }) {
+export function TotalsBar({
+  totals,
+  type,
+  revenueLabel = "Total revenus",
+}: {
+  totals: OperationTotals;
+  type?: OperationTypeValue;
+  revenueLabel?: string;
+}) {
   const items: { label: string; value: string; className?: string }[] = [
     { label: "Opérations", value: totals.count.toLocaleString("fr-FR") },
   ];
-  if (!type || type === "REVENUE") items.push({ label: "Total revenus", value: formatMoney(totals.revenue), className: "text-revenue" });
+  if (!type || type === "REVENUE") items.push({ label: revenueLabel, value: formatMoney(totals.revenue), className: "text-revenue" });
   if (!type || type === "EXPENSE") items.push({ label: "Total dépenses", value: formatMoney(totals.expense), className: "text-expense" });
   if (!type) {
     const negative = totals.result.startsWith("-");

@@ -16,9 +16,9 @@ import {
   FUNDS_SOURCES,
   FUNDS_SOURCE_LABELS,
   MEMBER_ROLE_LABELS,
-  OPERATION_TYPE_PATHS,
   PAYMENT_METHODS,
   PAYMENT_METHOD_LABELS,
+  operationBasePath,
   type OperationTypeValue,
 } from "@/lib/constants";
 import { formatDate } from "@/lib/dates";
@@ -35,6 +35,8 @@ type OperationFormProps = {
   members: Option[];
   canChooseMember: boolean;
   lockedUntil: string | null;
+  /** Catégorie présélectionnée quand on coche « cotisation » (active et proposée), sinon null. */
+  defaultContributionCategoryId?: string | null;
 };
 
 export function OperationForm({
@@ -45,6 +47,7 @@ export function OperationForm({
   members,
   canChooseMember,
   lockedUntil,
+  defaultContributionCategoryId = null,
 }: OperationFormProps) {
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
@@ -53,8 +56,18 @@ export function OperationForm({
     defaultValues,
   });
   const { errors } = form.formState;
-  const basePath = OPERATION_TYPE_PATHS[type];
   const isExpense = type === "EXPENSE";
+  const isContribution = !isExpense && form.watch("isContribution");
+  // Le lien « Annuler » ramène à la rubrique d'origine (avant modification de la case).
+  const cancelBase = operationBasePath({ type, isContribution: defaultValues.isContribution });
+
+  const contributionToggle = form.register("isContribution");
+  const onContributionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    void contributionToggle.onChange(event);
+    if (event.target.checked && !form.getValues("categoryId") && defaultContributionCategoryId) {
+      form.setValue("categoryId", defaultContributionCategoryId, { shouldValidate: true });
+    }
+  };
 
   const onSubmit = form.handleSubmit((values) => {
     startTransition(async () => {
@@ -69,7 +82,9 @@ export function OperationForm({
         return;
       }
       toast.success(result.message ?? "Enregistré.");
-      router.push(operationId ? `${basePath}/${operationId}` : basePath);
+      // Après enregistrement, on rejoint la rubrique correspondant à la case cochée.
+      const target = operationBasePath({ type, isContribution: values.isContribution });
+      router.push(operationId ? `${target}/${operationId}` : target);
     });
   });
 
@@ -86,10 +101,37 @@ export function OperationForm({
             </p>
           )}
 
-          <FormField id="title" label="Titre" required error={err("title")} className="sm:col-span-2">
+          {!isExpense && (
+            <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border bg-card p-3 text-sm transition-colors has-[:checked]:border-primary has-[:checked]:bg-secondary has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring sm:col-span-2">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4 accent-[var(--primary)]"
+                {...contributionToggle}
+                onChange={onContributionChange}
+              />
+              <span>
+                <span className="font-medium">C&apos;est une cotisation d&apos;un membre</span>
+                <span className="block text-xs text-muted-foreground">
+                  Reste comptée dans les revenus, mais apparaît dans la rubrique « Cotisations ». Décochez pour un
+                  revenu ordinaire (vente, prestation…).
+                </span>
+              </span>
+            </label>
+          )}
+
+          <FormField
+            id="title"
+            label="Titre"
+            required={!isContribution}
+            error={err("title")}
+            hint={isContribution ? "Facultatif : laissé vide, il est généré (ex. « Cotisation nov. 2026 — Nom »)." : undefined}
+            className="sm:col-span-2"
+          >
             <Input
-              {...fieldAria("title", err("title"))}
-              placeholder={isExpense ? "Ex. Achat de semences de blé" : "Ex. Vente de 2 tonnes d'olives"}
+              {...fieldAria("title", err("title"), isContribution ? "hint" : undefined)}
+              placeholder={
+                isExpense ? "Ex. Achat de semences de blé" : isContribution ? "Généré automatiquement" : "Ex. Vente de 2 tonnes d'olives"
+              }
               {...form.register("title")}
             />
           </FormField>
@@ -104,7 +146,7 @@ export function OperationForm({
             />
           </FormField>
 
-          <FormField id="date" label={isExpense ? "Date de la dépense" : "Date d'encaissement"} required error={err("date")}>
+          <FormField id="date" label={isExpense ? "Date de la dépense" : isContribution ? "Date de la cotisation" : "Date d'encaissement"} required error={err("date")}>
             <Input {...fieldAria("date", err("date"))} type="date" {...form.register("date")} />
           </FormField>
 
@@ -122,7 +164,7 @@ export function OperationForm({
 
           <FormField
             id="memberId"
-            label={MEMBER_ROLE_LABELS[type]}
+            label={isContribution ? "Cotisant" : MEMBER_ROLE_LABELS[type]}
             required
             error={err("memberId")}
             hint={canChooseMember ? undefined : "Vous ne pouvez enregistrer que vos propres opérations."}
@@ -166,9 +208,11 @@ export function OperationForm({
             </p>
           </fieldset>
 
-          <FormField id="counterparty" label={COUNTERPARTY_LABELS[type]} error={err("counterparty")}>
-            <Input {...fieldAria("counterparty", err("counterparty"))} {...form.register("counterparty")} />
-          </FormField>
+          {!isContribution && (
+            <FormField id="counterparty" label={COUNTERPARTY_LABELS[type]} error={err("counterparty")}>
+              <Input {...fieldAria("counterparty", err("counterparty"))} {...form.register("counterparty")} />
+            </FormField>
+          )}
 
           <FormField id="paymentMethod" label={isExpense ? "Mode de paiement" : "Mode d'encaissement"} error={err("paymentMethod")}>
             <NativeSelect {...fieldAria("paymentMethod", err("paymentMethod"))} {...form.register("paymentMethod")}>
@@ -181,21 +225,28 @@ export function OperationForm({
             </NativeSelect>
           </FormField>
 
-          <FormField
-            id="reference"
-            label={isExpense ? "Référence de facture" : "Référence de transaction"}
-            error={err("reference")}
-          >
-            <Input {...fieldAria("reference", err("reference"))} {...form.register("reference")} />
-          </FormField>
+          {!isContribution && (
+            <FormField
+              id="reference"
+              label={isExpense ? "Référence de facture" : "Référence de transaction"}
+              error={err("reference")}
+            >
+              <Input {...fieldAria("reference", err("reference"))} {...form.register("reference")} />
+            </FormField>
+          )}
 
-          <FormField id="description" label="Description" error={err("description")} className="sm:col-span-2">
+          <FormField
+            id="description"
+            label={isContribution ? "Note" : "Description"}
+            error={err("description")}
+            className="sm:col-span-2"
+          >
             <Textarea {...fieldAria("description", err("description"))} rows={3} {...form.register("description")} />
           </FormField>
         </CardContent>
         <CardFooter className="justify-end gap-2">
           <Button variant="outline" asChild>
-            <Link href={operationId ? `${basePath}/${operationId}` : basePath}>Annuler</Link>
+            <Link href={operationId ? `${cancelBase}/${operationId}` : cancelBase}>Annuler</Link>
           </Button>
           <Button type="submit" disabled={pending}>
             {pending && <LoaderCircle className="animate-spin" />}

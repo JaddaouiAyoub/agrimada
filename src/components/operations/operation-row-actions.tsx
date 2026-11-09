@@ -12,39 +12,51 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ConfirmAction } from "@/components/shared/confirm-action";
-import { OPERATION_TYPE_PATHS, type OperationTypeValue } from "@/lib/constants";
+import { operationBasePath, type OperationTypeValue } from "@/lib/constants";
 import { deleteOperationAction } from "@/server/actions/operations";
 
 type Props = {
   id: string;
   type: OperationTypeValue;
   title: string;
+  isContribution?: boolean;
   canEdit: boolean;
   /** Après suppression depuis la fiche, retour à la liste. */
   redirectAfterDelete?: boolean;
   variant?: "menu" | "buttons";
 };
 
-export function OperationRowActions({ id, type, title, canEdit, redirectAfterDelete, variant = "menu" }: Props) {
+export function OperationRowActions({
+  id,
+  type,
+  title,
+  isContribution = false,
+  canEdit,
+  redirectAfterDelete,
+  variant = "menu",
+}: Props) {
   const [confirmOpen, setConfirmOpen] = React.useState(false);
-  const base = `${OPERATION_TYPE_PATHS[type]}/${id}`;
-  const label = type === "EXPENSE" ? "cette dépense" : "ce revenu";
+  const listPath = operationBasePath({ type, isContribution });
+  const base = `${listPath}/${id}`;
+  const contribution = type === "REVENUE" && isContribution;
+  const feminine = type === "EXPENSE" || contribution;
+  const label = type === "EXPENSE" ? "cette dépense" : contribution ? "cette cotisation" : "ce revenu";
 
   const confirm = (
     <ConfirmAction
       open={confirmOpen}
       onOpenChange={setConfirmOpen}
-      title={type === "EXPENSE" ? "Supprimer la dépense ?" : "Supprimer le revenu ?"}
+      title={type === "EXPENSE" ? "Supprimer la dépense ?" : contribution ? "Supprimer la cotisation ?" : "Supprimer le revenu ?"}
       description={
         <>
-          « {title} » sera retiré{type === "EXPENSE" ? "e" : ""} des listes et des calculs. La suppression est tracée dans
+          « {title} » sera retiré{feminine ? "e" : ""} des listes et des calculs. La suppression est tracée dans
           le journal d&apos;activité.
         </>
       }
       confirmLabel="Supprimer"
       destructive
       action={() => deleteOperationAction(id)}
-      redirectTo={redirectAfterDelete ? OPERATION_TYPE_PATHS[type] : undefined}
+      redirectTo={redirectAfterDelete ? listPath : undefined}
     />
   );
 

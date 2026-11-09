@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { SignedAmount } from "@/components/shared/badges";
-import { OPERATION_TYPE_PATHS } from "@/lib/constants";
+import { operationBasePath } from "@/lib/constants";
 import { formatDate } from "@/lib/dates";
 import type { OperationListItem } from "@/server/queries/operations";
 
@@ -19,7 +19,7 @@ export function RecentList({
       {items.map((op) => (
         <li key={op.id}>
           <Link
-            href={`${OPERATION_TYPE_PATHS[op.type]}/${op.id}`}
+            href={`${operationBasePath(op)}/${op.id}`}
             className="-mx-2 flex items-center justify-between gap-3 rounded-md px-2 py-2.5 hover:bg-muted/60"
           >
             <span className="min-w-0">

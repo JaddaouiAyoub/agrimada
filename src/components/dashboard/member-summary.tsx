@@ -16,6 +16,7 @@ export function MemberSummaryTable({ members }: { members: MemberSummary[] }) {
           <TableHead className="text-right">Dépenses payées</TableHead>
           <TableHead className="text-right">dont avances perso.</TableHead>
           <TableHead className="text-right">Revenus encaissés</TableHead>
+          <TableHead className="text-right">dont cotisations</TableHead>
           <TableHead className="text-right">dont conservés</TableHead>
           <TableHead className="text-right">Opérations</TableHead>
         </TableRow>
@@ -34,6 +35,7 @@ export function MemberSummaryTable({ members }: { members: MemberSummary[] }) {
             <TableCell className="tabular text-right">{formatMoney(m.expensesPaid)}</TableCell>
             <TableCell className="tabular text-right text-muted-foreground">{formatMoney(m.advances)}</TableCell>
             <TableCell className="tabular text-right">{formatMoney(m.revenuesReceived)}</TableCell>
+            <TableCell className="tabular text-right text-muted-foreground">{formatMoney(m.contributionsPaid)}</TableCell>
             <TableCell className="tabular text-right text-muted-foreground">{formatMoney(m.heldFunds)}</TableCell>
             <TableCell className="tabular text-right">{m.operationsCount}</TableCell>
           </TableRow>
