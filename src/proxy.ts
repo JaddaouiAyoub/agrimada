@@ -5,6 +5,10 @@ import { NextResponse, type NextRequest } from "next/server";
 // la session et les droits côté serveur (requireUser / requireAdminPage).
 const PUBLIC_PATHS = ["/login", "/activate", "/forgot-password"];
 
+// Site vitrine (/fr, /ar et leurs pages) et fichiers SEO : accessibles sans compte.
+const SITE_PATHS = ["/fr", "/ar"];
+const SITE_FILES = ["/", "/sitemap.xml", "/robots.txt"];
+
 function hasSessionCookie(request: NextRequest): boolean {
   return request.cookies
     .getAll()
@@ -13,7 +17,9 @@ function hasSessionCookie(request: NextRequest): boolean {
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  const isPublic =
+    SITE_FILES.includes(pathname) ||
+    [...PUBLIC_PATHS, ...SITE_PATHS].some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
   if (!isPublic && !hasSessionCookie(request)) {
     if (pathname.startsWith("/api/")) {
