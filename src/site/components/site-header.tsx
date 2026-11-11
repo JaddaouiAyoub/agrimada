@@ -75,6 +75,7 @@ export function SiteHeader({
   const isActive = (href: string) => (href === `/${locale}` ? pathname === href : pathname.startsWith(href));
 
   return (
+    <>
     <header
       className={cn(
         "fixed inset-x-0 top-0 z-40 transition-[background-color,box-shadow,color] duration-500",
@@ -145,15 +146,19 @@ export function SiteHeader({
           </button>
         </div>
       </div>
+    </header>
 
-      {/* Menu mobile plein écran */}
-      <div
-        id="site-mobile-menu"
-        ref={panelRef}
-        hidden={!open}
-        className="fixed inset-x-0 top-18 bottom-0 overflow-y-auto bg-forest text-ivory lg:hidden"
-      >
-        <nav aria-label={labels.menu} className="container-site flex min-h-full flex-col py-10">
+      {/* Menu mobile en tiroir latéral — rendu HORS du <header> : le backdrop-blur de l'en-tête
+          crée un bloc conteneur pour les éléments `fixed`, ce qui réduisait ce panneau à 0 px de haut.
+          Une bande de fond assombri reste visible : un clic dessus ferme le menu. */}
+      <div hidden={!open} className="fixed inset-x-0 top-18 bottom-0 z-30 lg:hidden">
+        <div aria-hidden className="absolute inset-0 bg-ink/50" onClick={() => setOpen(false)} />
+        <div
+          id="site-mobile-menu"
+          ref={panelRef}
+          className="absolute inset-y-0 end-0 w-[85%] max-w-sm overflow-y-auto bg-forest text-ivory shadow-2xl"
+        >
+        <nav aria-label={labels.menu} className="flex min-h-full flex-col px-6 py-8">
           <ul className="flex flex-col gap-1">
             {nav.map((item, i) => (
               <li key={item.href}>
@@ -161,7 +166,7 @@ export function SiteHeader({
                   href={item.href}
                   aria-current={isActive(item.href) ? "page" : undefined}
                   onClick={() => setOpen(false)}
-                  className="flex items-baseline gap-4 border-b border-ivory/10 py-4 font-display text-3xl aria-[current=page]:text-saffron"
+                  className="flex items-baseline gap-4 border-b border-ivory/10 py-4 font-display text-2xl aria-[current=page]:text-saffron"
                 >
                   <span className="font-sans text-xs text-ivory/40 tabular-nums">{String(i + 1).padStart(2, "0")}</span>
                   {item.label}
@@ -179,7 +184,8 @@ export function SiteHeader({
             {labels.writeUs}
           </a>
         </nav>
+        </div>
       </div>
-    </header>
+    </>
   );
 }
